@@ -5,6 +5,7 @@ import { Card, CardContent } from "./ui/card";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { Button } from "./ui/button";
+import toast, { Toaster } from "react-hot-toast";
 
 interface Task {
   id: number;
@@ -19,7 +20,10 @@ const TaskList = () => {
   const [description, setDescription] = useState("");
 
   const addTask = () => {
-    if (!title.trim()) return;
+    if (!title.trim()) {
+      toast.error("Please enter a task title");
+      return;
+    }
 
     const newTask: Task = {
       id: Date.now(),
@@ -31,10 +35,12 @@ const TaskList = () => {
     setTasks([...tasks, newTask]);
     setTitle("");
     setDescription("");
+    toast.success("Task added successfully!");
   };
 
   const deleteTask = (id: number) => {
     setTasks(tasks.filter((task) => task.id !== id));
+    toast.success("Task deleted");
   };
 
   const toggleTask = (id: number) => {
@@ -43,6 +49,7 @@ const TaskList = () => {
         task.id === id ? { ...task, completed: !task.completed } : task
       )
     );
+    toast.success("Task completed!");
   };
 
   const todoCount = tasks.filter((task) => !task.completed).length;
@@ -51,6 +58,7 @@ const TaskList = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
+      <Toaster position="top-right" />
       {/* Header Section */}
       <div className="text-center mb-8">
         {/* Logo */}
@@ -70,15 +78,6 @@ const TaskList = () => {
           Master your productivity, one task at a time
         </p>
       </div>
-
-      {/* Error Message */}
-      {tasks.length === 0 && title === "" && (
-        <div className="max-w-6xl mx-auto px-4 mb-6">
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-            Failed to fetch tasks. Please make sure the backend server is running.
-          </div>
-        </div>
-      )}
 
       {/* Main Content */}
       <div className="max-w-6xl mx-auto px-4">
