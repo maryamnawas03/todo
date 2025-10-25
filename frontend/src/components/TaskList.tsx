@@ -1,60 +1,120 @@
 // src/components/TaskList.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { CheckSquare, Plus, Trash2, Circle } from "lucide-react";
 import { Card, CardContent } from "./ui/card";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { Button } from "./ui/button";
 import toast, { Toaster } from "react-hot-toast";
+import axios from "axios";
+
+const API_BASE_URL = "http://localhost:3001";
 
 interface Task {
   id: number;
   title: string;
   description: string;
-  completed: boolean;
+  isCompleted: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface ApiResponse {
+  tasks?: Task[];
+  task?: Task;
+  stats: {
+    todo: number;
+    completed: number;
+  };
 }
 
 const TaskList = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [todoCount, setTodoCount] = useState(0);
+  const [completedCount, setCompletedCount] = useState(0);
+  const [loading, setLoading] = useState(false);
 
-  const addTask = () => {
+  // Fetch tasks from backend
+  const fetchTasks = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get<ApiResponse>(`${API_BASE_URL}/tasks`);
+      setTasks(response.data.tasks || []);
+      setTodoCount(response.data.stats.todo);
+      setCompletedCount(response.data.stats.completed);
+    } catch (error) {
+      toast.error("Failed to fetch tasks");
+      console.error("Error fetching tasks:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load tasks on component mount
+  useEffect(() => {
+    fetchTasks();
+  }, []);
+
+  const addTask = async () => {
     if (!title.trim()) {
       toast.error("Please enter a task title");
       return;
     }
 
-    const newTask: Task = {
-      id: Date.now(),
-      title,
-      description,
-      completed: false,
-    };
-
-    setTasks([...tasks, newTask]);
-    setTitle("");
-    setDescription("");
-    toast.success("Task added successfully!");
+    try {
+      const response = await axios.post<ApiResponse>(`${API_BASE_URL}/tasks`, {
+        title,
+        description,
+      });
+      
+      setTitle("");
+      setDescription("");
+      setTodoCount(response.data.stats.todo);
+      setCompletedCount(response.data.stats.completed);
+      toast.success("Task added successfully!");
+      
+      // Refresh tasks to show the latest 5
+      fetchTasks();
+    } catch (error) {
+      toast.error("Failed to add task");
+      console.error("Error adding task:", error);
+    }
   };
 
-  const deleteTask = (id: number) => {
-    setTasks(tasks.filter((task) => task.id !== id));
-    toast.success("Task deleted");
+  const deleteTask = async (id: number) => {
+    try {
+      const response = await axios.delete<ApiResponse>(`${API_BASE_URL}/tasks/${id}`);
+      setTodoCount(response.data.stats.todo);
+      setCompletedCount(response.data.stats.completed);
+      toast.success("Task deleted");
+      
+      // Refresh tasks to show the latest 5
+      fetchTasks();
+    } catch (error) {
+      toast.error("Failed to delete task");
+      console.error("Error deleting task:", error);
+    }
   };
 
-  const toggleTask = (id: number) => {
-    setTasks(
-      tasks.map((task) =>
-        task.id === id ? { ...task, completed: !task.completed } : task
-      )
-    );
-    toast.success("Task completed!");
+  const toggleTask = async (id: number) => {
+    try {
+      const response = await axios.put<ApiResponse>(`${API_BASE_URL}/tasks/${id}`, {
+        isCompleted: true,
+      });
+      
+      setTodoCount(response.data.stats.todo);
+      setCompletedCount(response.data.stats.completed);
+      toast.success("Task completed!");
+      
+      // Refresh tasks to show the latest 5 incomplete tasks
+      fetchTasks();
+    } catch (error) {
+      toast.error("Failed to update task");
+      console.error("Error updating task:", error);
+    }
   };
-
-  const todoCount = tasks.filter((task) => !task.completed).length;
-  const completedCount = tasks.filter((task) => task.completed).length;
-  const activeTasks = tasks.filter((task) => !task.completed);
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -157,7 +217,14 @@ const TaskList = () => {
                 <h2 className="text-2xl font-bold text-gray-800">Your Tasks</h2>
               </div>
 
-              {activeTasks.length === 0 ? (
+              {loading ? (
+                <div className="text-center py-12">
+                  <div className="flex justify-center mb-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                  </div>
+                  <p className="text-gray-500">Loading tasks...</p>
+                </div>
+              ) : tasks.length === 0 ? (
                 <div className="text-center py-12">
                   <div className="flex justify-center mb-4">
                     <Circle className="w-16 h-16 text-gray-300" />
@@ -171,7 +238,7 @@ const TaskList = () => {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {activeTasks.map((task) => (
+                  {tasks.map((task) => (
                     <Card
                       key={task.id}
                       className="transition-all hover:shadow-md bg-white"
