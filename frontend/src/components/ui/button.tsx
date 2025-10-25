@@ -4,10 +4,11 @@ import { cn } from "../../lib/utils"
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link"
+  size?: "default" | "sm" | "lg"
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = "default", ...props }, ref) => {
+  ({ className, variant = "default", size = "default", ...props }, ref) => {
     return (
       <button
         className={cn(
@@ -20,7 +21,11 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
             "hover:bg-gray-100 hover:text-gray-900": variant === "ghost",
             "text-gray-900 underline-offset-4 hover:underline": variant === "link",
           },
-          "h-10 px-4 py-2",
+          {
+            "h-10 px-4 py-2": size === "default",
+            "h-8 px-3 py-1 text-xs": size === "sm",
+            "h-12 px-6 py-3": size === "lg",
+          },
           className
         )}
         ref={ref}

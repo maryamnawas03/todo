@@ -1,10 +1,11 @@
 // src/components/TaskList.tsx
 import React, { useState, useEffect } from "react";
-import { CheckSquare, Plus, Trash2, Circle } from "lucide-react";
+import { CheckSquare, Plus, Trash2, Circle, Edit2, Save, X } from "lucide-react";
 import { Card, CardContent } from "./ui/card";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { Button } from "./ui/button";
+import { ConfirmDialog } from "./ui/confirm-dialog";
 import toast, { Toaster } from "react-hot-toast";
 import axios from "axios";
 
@@ -35,6 +36,18 @@ const TaskList = () => {
   const [todoCount, setTodoCount] = useState(0);
   const [completedCount, setCompletedCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [editingTask, setEditingTask] = useState<number | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    taskId: number | null;
+    taskTitle: string;
+  }>({
+    isOpen: false,
+    taskId: null,
+    taskTitle: "",
+  });
 
   // Fetch tasks from backend
   const fetchTasks = async () => {
@@ -95,6 +108,61 @@ const TaskList = () => {
     } catch (error) {
       toast.error("Failed to delete task");
       console.error("Error deleting task:", error);
+    } finally {
+      setConfirmDialog({ isOpen: false, taskId: null, taskTitle: "" });
+    }
+  };
+
+  const handleDeleteClick = (task: Task) => {
+    setConfirmDialog({
+      isOpen: true,
+      taskId: task.id,
+      taskTitle: task.title,
+    });
+  };
+
+  const handleDeleteConfirm = () => {
+    if (confirmDialog.taskId) {
+      deleteTask(confirmDialog.taskId);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setConfirmDialog({ isOpen: false, taskId: null, taskTitle: "" });
+  };
+
+  const startEditing = (task: Task) => {
+    setEditingTask(task.id);
+    setEditTitle(task.title);
+    setEditDescription(task.description || "");
+  };
+
+  const cancelEditing = () => {
+    setEditingTask(null);
+    setEditTitle("");
+    setEditDescription("");
+  };
+
+  const saveEdit = async (id: number) => {
+    try {
+      const response = await axios.put<ApiResponse>(`${API_BASE_URL}/tasks/${id}`, {
+        title: editTitle,
+        description: editDescription,
+        isCompleted: false,
+      });
+      
+      setTodoCount(response.data.stats.todo);
+      setCompletedCount(response.data.stats.completed);
+      setEditingTask(null);
+      setEditTitle("");
+      setEditDescription("");
+      toast.success("Task updated!");
+      
+      // Refresh tasks to show the latest 5
+      fetchTasks();
+    } catch (error) {
+      toast.error("Failed to update task");
+      console.error("Error updating task:", error);
     }
   };
 
@@ -244,34 +312,82 @@ const TaskList = () => {
                       className="transition-all hover:shadow-md bg-white"
                     >
                       <CardContent className="p-4">
-                        <div className="flex items-start gap-3">
-                          <button
-                            onClick={() => toggleTask(task.id)}
-                            className="mt-1"
-                            aria-label="Mark task as complete"
-                          >
-                            <Circle className="w-5 h-5 text-gray-400" />
-                          </button>
-
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-gray-800 mb-1">
-                              {task.title}
-                            </h3>
-                            {task.description && (
-                              <p className="text-sm text-gray-600">
-                                {task.description}
-                              </p>
-                            )}
+                        {editingTask === task.id ? (
+                          // Edit mode
+                          <div className="space-y-3">
+                            <Input
+                              value={editTitle}
+                              onChange={(e) => setEditTitle(e.target.value)}
+                              placeholder="Task title"
+                              className="font-semibold"
+                            />
+                            <Textarea
+                              value={editDescription}
+                              onChange={(e) => setEditDescription(e.target.value)}
+                              placeholder="Task description"
+                              rows={3}
+                            />
+                            <div className="flex gap-2 justify-end">
+                              <Button
+                                variant="outline"
+                                onClick={cancelEditing}
+                                size="sm"
+                              >
+                                <X className="w-4 h-4 mr-1" />
+                                Cancel
+                              </Button>
+                              <Button
+                                onClick={() => saveEdit(task.id)}
+                                size="sm"
+                                className="bg-green-600 hover:bg-green-700"
+                              >
+                                <Save className="w-4 h-4 mr-1" />
+                                Save
+                              </Button>
+                            </div>
                           </div>
+                        ) : (
+                          // View mode
+                          <div className="flex items-start gap-3">
+                            <button
+                              onClick={() => toggleTask(task.id)}
+                              className="mt-1"
+                              aria-label="Mark task as complete"
+                            >
+                              <Circle className="w-5 h-5 text-gray-400" />
+                            </button>
 
-                          <Button
-                            variant="ghost"
-                            onClick={() => deleteTask(task.id)}
-                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-gray-800 mb-1">
+                                {task.title}
+                              </h3>
+                              {task.description && (
+                                <p className="text-sm text-gray-600">
+                                  {task.description}
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                onClick={() => startEditing(task)}
+                                className="text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                                size="sm"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                onClick={() => handleDeleteClick(task)}
+                                className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                size="sm"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   ))}
@@ -281,6 +397,15 @@ const TaskList = () => {
           </div>
         </div>
       </div>
+
+      {/* Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title="Delete Task"
+        message={`Are you sure you want to delete "${confirmDialog.taskTitle}"? This action cannot be undone.`}
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+      />
     </div>
   );
 };
