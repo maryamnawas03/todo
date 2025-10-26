@@ -9,7 +9,7 @@ import { ConfirmDialog } from "./ui/confirm-dialog";
 import toast, { Toaster } from "react-hot-toast";
 import axios from "axios";
 
-const API_BASE_URL = "http://localhost:3001";
+const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:3001";
 
 interface Task {
   id: number;
