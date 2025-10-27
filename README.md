@@ -40,6 +40,9 @@ docker-compose restart frontend
 ### Backend Tests
 
 ```bash
+# Install backend dependencies
+docker-compose exec backend npm install
+
 # Run all tests
 docker-compose exec backend npm test
 
@@ -49,8 +52,6 @@ docker-compose exec backend npm run test:integration
 # Run unit tests
 docker-compose exec backend npm run test:unit
 
-# Run tests in watch mode
-docker-compose exec backend npm run test:watch
 ```
 
 ### Frontend Tests
